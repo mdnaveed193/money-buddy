@@ -56,29 +56,32 @@ public class DashboardService {
         List<Income> latestIncomes = incomeDao.findRecentIncomes(profileId);
         List<Expense> latestExpenses = expenseDao.findRecentExpenses(profileId);
 
+        // convert incomes/expenses to DTOs to avoid exposing Profile (and password)
+        List<RecentTransactionDto> recentIncomesDtos = latestIncomes == null ? new ArrayList<>()
+            : latestIncomes.stream()
+                .map(i -> new RecentTransactionDto(i.getId(), i.getName(), i.getIcon(), i.getProfile() == null ? 0L : i.getProfile().getId(), i.getAmount(), i.getDate(), i.getCreatedAt(), i.getUpdatedAt(), "income"))
+                .collect(Collectors.toList());
+
+        List<RecentTransactionDto> recentExpensesDtos = latestExpenses == null ? new ArrayList<>()
+            : latestExpenses.stream()
+                .map(e -> new RecentTransactionDto(e.getId(), e.getName(), e.getIcon(), e.getProfile() == null ? 0L : e.getProfile().getId(), e.getAmount(), e.getDate(), e.getCreatedAt(), e.getUpdatedAt(), "expense"))
+                .collect(Collectors.toList());
+
         List<RecentTransactionDto> merged = new ArrayList<>();
-
-        if (latestIncomes != null) {
-            merged.addAll(latestIncomes.stream().map(i -> new RecentTransactionDto(i.getId(), i.getName(), i.getIcon(), i.getProfile().getId(), i.getAmount(), i.getDate(), i.getCreatedAt(), i.getUpdatedAt(), "income"))
-                    .collect(Collectors.toList()));
-        }
-
-        if (latestExpenses != null) {
-            merged.addAll(latestExpenses.stream().map(e -> new RecentTransactionDto(e.getId(), e.getName(), e.getIcon(), e.getProfile().getId(), e.getAmount(), e.getDate(), e.getCreatedAt(), e.getUpdatedAt(), "expense"))
-                    .collect(Collectors.toList()));
-        }
+        merged.addAll(recentIncomesDtos);
+        merged.addAll(recentExpensesDtos);
 
         List<RecentTransactionDto> recentTransactions = merged.stream()
-                .sorted(Comparator.comparing(RecentTransactionDto::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(RecentTransactionDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
-                .collect(Collectors.toList());
+            .sorted(Comparator.comparing(RecentTransactionDto::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(RecentTransactionDto::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+            .collect(Collectors.toList());
 
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("totalBalance", totalBalance);
         map.put("totalIncome", totalIncome == null ? BigDecimal.ZERO : totalIncome);
         map.put("totalExpense", totalExpense == null ? BigDecimal.ZERO : totalExpense);
-        map.put("recentIncomes", latestIncomes == null ? new ArrayList<>() : latestIncomes);
-        map.put("recentExpenses", latestExpenses == null ? new ArrayList<>() : latestExpenses);
+        map.put("recentIncomes", recentIncomesDtos);
+        map.put("recentExpenses", recentExpensesDtos);
         map.put("recentTransactions", recentTransactions);
 
         return map;
